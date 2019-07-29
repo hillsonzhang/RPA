@@ -1,0 +1,63 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Activities;
+using System.ComponentModel;
+using System.Data;
+using System.IO;
+using Newtonsoft.Json.Linq;
+
+namespace BaiduOCR
+{
+    public class BaiduOCR:CodeActivity
+    {
+        [Category("Input")]
+        [RequiredArgument]
+        public InArgument<String> templateSign { get; set; }
+
+        [Category("Input")]
+        public InArgument<String> API_KEY { get; set; }
+
+        [Category("Input")]
+        public InArgument<String> SECRET_KEY { get; set; }
+
+        [Category("Input")]
+        public InArgument<String> ImagePath { get; set; }
+
+
+
+        [Category("Output")]
+        public OutArgument<DataTable> Result { get; set; }
+
+        protected override void Execute(CodeActivityContext context)
+        {
+            var mytemplateSign = templateSign.Get(context);
+            var myAPI_KEY = API_KEY.Get(context);
+            var mySECRET_KEY = SECRET_KEY.Get(context);
+            var myImagePath = ImagePath.Get(context);
+            DataTable resultDT = new DataTable();
+            
+            var client = new Baidu.Aip.Ocr.Ocr(myAPI_KEY, mySECRET_KEY);
+            client.Timeout = 60000;  // 修改超时时间
+            var image = File.ReadAllBytes(myImagePath);
+
+            // 如果有可选参数
+            var options = new Dictionary<string, object>{
+                {"templateSign", mytemplateSign}
+                };
+
+            var result = client.Custom(image, options);
+                // 带参数调用自定义模板文字识别
+            JArray array = JArray.Parse(result["data"]["ret"].ToString());
+            resultDT.Columns.Add("word_name", typeof(String));
+            resultDT.Columns.Add("word", typeof(String));
+            foreach (var i in array)
+            {
+                resultDT.Rows.Add(i["word_name"].ToString(), i["word"].ToString());
+            }
+            Result.Set(context, resultDT);
+        }
+    }
+}
